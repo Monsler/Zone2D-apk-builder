@@ -6,7 +6,8 @@ mod apk;
 pub enum LogType {
     INFO,
     WARN,
-    ERR
+    ERR,
+    SUC
 }
 
 static VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -22,8 +23,20 @@ struct CliArgs {
     #[arg(long = "versioncode")]
     version_code: String,
 
+    #[arg(long = "keystore")]
+    keystore: String,
+
+    #[arg(long = "keystore-pwd")]
+    keystore_pass: String,
+
+    #[arg(long = "zpak")]
+    zpak_path: String,
+
     #[arg(long = "javahome")]
     java_home: Option<String>,
+
+    #[arg(long = "out")]
+    out_path: Option<String>
 }
 
 pub fn log(msg_type: LogType, msg: &str) {
@@ -37,25 +50,36 @@ pub fn log(msg_type: LogType, msg: &str) {
         LogType::ERR => {
             println!("[E] {}", msg.red());
         },
+        LogType::SUC => {
+            println!("[S] {}", msg.green().bold());
+        }
     }
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
     let mut properties: HashMap<&str, &str> = HashMap::new();
-    let mut path = "./base.apk";
+    
     let args = CliArgs::parse();
     properties.insert("package_name", &args.package_name);
     properties.insert("version_name", &args.version_name);
     properties.insert("version_code", &args.version_code);
+    properties.insert("zpak_path", &args.zpak_path);
+    properties.insert("keystore", &args.keystore);
+    properties.insert("keystore_pass", &args.keystore_pass);
+
+    let path = if let Some(out) = args.out_path {
+        out
+    } else {
+        "out.apk".to_owned()
+    };
+
     if let Some(java) = &args.java_home {
         properties.insert("java_home",java);
     }
 
-
     log(LogType::INFO,"Zone2D Builder CLI");
     log(LogType::INFO, &format!("Version: {}", VERSION));
     let builder = apk::Builder::new(properties);
-    builder.build_to(path);
+    builder.build_to(&path);
     
 }
