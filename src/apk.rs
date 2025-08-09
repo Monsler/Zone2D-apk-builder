@@ -263,18 +263,8 @@ impl Builder {
            
         }
 
-        if !self.launcher_path.is_empty() {
-            let ico_paths: Vec<&str> = vec!["hdpi", "mdpi", "xhdpi", "xxhdpi", "xxxhdpi"];
-            for ico in ico_paths {
-                let icon_path = format!("template/res/mipmap-{}/ic_launcher.png", &ico);
-                if fs::exists(&icon_path).unwrap() {
-                    let _ = fs::remove_file(&icon_path);
-                }
-                log(LogType::INFO, &format!("Changing {} to {}", &icon_path, &self.launcher_path));
-                let _ = fs::copy(&self.launcher_path, &icon_path);
-            }
-        }
         
+
         if fs::exists(zpak_dest).unwrap() {
            let _ = fs::remove_file(zpak_dest);
         }
@@ -295,6 +285,29 @@ impl Builder {
         log(crate::LogType::INFO, &format!("Version Code: {}", self.version_code.white()));
         log(crate::LogType::INFO, &format!("Java Home: {}", java.white()).to_string());
         log(crate::LogType::WARN, "Starting build...");
+        if !self.launcher_path.is_empty() {
+            let icon = image::open(&self.launcher_path);
+            let ico_paths= vec![("mdpi", 48), ("hdpi", 72), ("xhdpi", 98), ("xxhdpi", 144), ("xxxhdpi", 192)];
+            for state in ico_paths {
+                match &icon {
+                    Ok(img) => {
+                        let icon_path = format!("template/res/mipmap-{}/ic_launcher.png", state.0);
+                        if fs::exists(&icon_path).unwrap() {
+                            let _ = fs::remove_file(&icon_path);
+                        }
+                        log(LogType::INFO, &format!("Changing {} to {}", &icon_path, &self.launcher_path));
+                        let scaled = img.resize(state.1, state.1, image::imageops::FilterType::Lanczos3);
+                        let _ = scaled.save(icon_path);
+                        
+                    },
+                    Err(error) => {
+                        log(LogType::ERR, &format!("Error: {}", error));
+                        exit(-1);
+                    }
+                }
+                
+            }
+        }
         self.edit_manifest();
         let result = self.apktool_work(command_builder.make_apktool_command("base.apk".to_owned()), &java);
         if result == 0 {

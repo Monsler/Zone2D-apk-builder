@@ -1,10 +1,11 @@
 [package]
 name = "zone_apk_builder"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 
 [dependencies]
 clap = {version = "4.5.43", features = ["derive"]}
 colored = "3.0.0"
 dunce = "1.0.5"
+image = "0.25.6"
 regex = "1.11.1"
