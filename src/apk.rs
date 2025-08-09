@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fmt::format, fs, path::PathBuf, process::{exit, Command}, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::HashMap, env, fs, path::PathBuf, process::{exit, Command}, time::{SystemTime, UNIX_EPOCH}};
 use regex::Regex;
 use colored::Colorize;
 use crate::log;
@@ -10,7 +10,9 @@ pub struct Builder {
     java_home: Option<String>,
     sign_key: String,
     zpak_path: String,
-    sign_key_pass: String
+    sign_key_pass: String,
+    launcher_path: String,
+    app_name: String,
 }
 
 struct CommandBuilder {
@@ -117,20 +119,22 @@ impl CommandBuilder {
 impl Builder {
     pub fn new(properties: HashMap<&str, &str>) -> Self {
         Self { package_name: properties.get("package_name").map_or("com.zone.app", |v| v).to_string(), version: properties.get("version_name").map_or("1.0.0", |v | v).to_string(), version_code: properties.get("version_code").map_or("10", |v | v).to_string(), java_home: properties.get("java_home").map(|s| s.to_string()),
-                    zpak_path: properties.get("zpak_path").map_or("resource.zpak", |v | v).to_string(), sign_key: properties.get("keystore").map_or("android.keystore", |v | v).to_string(), sign_key_pass: properties.get("keystore_pass").map_or("", | v | v).to_string()}
+                    zpak_path: properties.get("zpak_path").map_or("resource.zpak", |v | v).to_string(), sign_key: properties.get("keystore").map_or("android.keystore", |v | v).to_string(), sign_key_pass: properties.get("keystore_pass").map_or("", | v | v).to_string(),
+                    app_name: properties.get("app_name").map_or("Zone2D Application", | v | v).to_string(), launcher_path: properties.get("icon_path").map_or("", |v | v).to_string()}
     }
 
     fn edit_manifest(&self) {
         log(crate::LogType::INFO, "Editing manifest...");
         match  fs::read_to_string("template/AndroidManifest.xml") {
             Ok(code) => {
-               let regex = Regex::new(r#"(package|android:versionCode|android:versionName|android:authorities)="[^"]+""#).unwrap();
+               let regex = Regex::new(r#"(package|android:versionCode|android:versionName|android:authorities|android:label)="[^"]+""#).unwrap();
                let modified = regex.replace_all(&code, |caps: &regex::Captures | {
                    match &caps[1] {
-                       "package" => format!("package=\"{}\"", &self.package_name).to_string(),
-                       "android:versionCode" => format!("android:versionCode=\"{}\"", self.version_code).to_string(),
-                       "android:versionName" => format!("android:versionName=\"{}\"", self.version).to_string(),
-                       "android:authorities" => format!("android:authorities=\"{}.androidx-startup\"", self.package_name).to_string(),
+                       "package" => format!("package=\"{}\"", &self.package_name),
+                       "android:versionCode" => format!("android:versionCode=\"{}\"", self.version_code),
+                       "android:versionName" => format!("android:versionName=\"{}\"", self.version),
+                       "android:authorities" => format!("android:authorities=\"{}.androidx-startup\"", self.package_name),
+                       "android:label" => format!("android:label=\"{}\"", self.app_name),
                        _ => caps[0].to_string(),
                    }
                });
@@ -258,6 +262,19 @@ impl Builder {
             }
            
         }
+
+        if !self.launcher_path.is_empty() {
+            let ico_paths: Vec<&str> = vec!["hdpi", "mdpi", "xhdpi", "xxhdpi", "xxxhdpi"];
+            for ico in ico_paths {
+                let icon_path = format!("template/res/mipmap-{}/ic_launcher.png", &ico);
+                if fs::exists(&icon_path).unwrap() {
+                    let _ = fs::remove_file(&icon_path);
+                }
+                log(LogType::INFO, &format!("Changing {} to {}", &icon_path, &self.launcher_path));
+                let _ = fs::copy(&self.launcher_path, &icon_path);
+            }
+        }
+        
         if fs::exists(zpak_dest).unwrap() {
            let _ = fs::remove_file(zpak_dest);
         }

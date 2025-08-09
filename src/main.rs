@@ -26,7 +26,7 @@ struct CliArgs {
     #[arg(long = "keystore")]
     keystore: String,
 
-    #[arg(long = "keystore-pwd")]
+    #[arg(long = "keystorepwd")]
     keystore_pass: String,
 
     #[arg(long = "zpak")]
@@ -36,7 +36,13 @@ struct CliArgs {
     java_home: Option<String>,
 
     #[arg(long = "out")]
-    out_path: Option<String>
+    out_path: Option<String>,
+
+    #[arg(long = "name")]
+    app_name: String,
+
+    #[arg(long = "icon")]
+    icon: String,
 }
 
 pub fn log(msg_type: LogType, msg: &str) {
@@ -66,6 +72,8 @@ fn main() {
     properties.insert("zpak_path", &args.zpak_path);
     properties.insert("keystore", &args.keystore);
     properties.insert("keystore_pass", &args.keystore_pass);
+    properties.insert("app_name", &args.app_name);
+    properties.insert("icon_path", &args.icon);
 
     let path = if let Some(out) = args.out_path {
         out
