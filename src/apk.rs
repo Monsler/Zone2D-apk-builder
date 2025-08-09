@@ -127,17 +127,26 @@ impl Builder {
         log(crate::LogType::INFO, "Editing manifest...");
         match  fs::read_to_string("template/AndroidManifest.xml") {
             Ok(code) => {
-               let regex = Regex::new(r#"(package|android:versionCode|android:versionName|android:authorities|android:label)="[^"]+""#).unwrap();
-               let modified = regex.replace_all(&code, |caps: &regex::Captures | {
-                   match &caps[1] {
-                       "package" => format!("package=\"{}\"", &self.package_name),
-                       "android:versionCode" => format!("android:versionCode=\"{}\"", self.version_code),
-                       "android:versionName" => format!("android:versionName=\"{}\"", self.version),
-                       "android:authorities" => format!("android:authorities=\"{}.androidx-startup\"", self.package_name),
-                       "android:label" => format!("android:label=\"{}\"", self.app_name),
-                       _ => caps[0].to_string(),
-                   }
-               });
+                let regex = Regex::new(r#"(package|android:versionCode|android:versionName|android:authorities|android:label)="[^"]+"|(<permission\s+android:name=)|(<uses-permission\s+android:name=)"[^"]+""#).unwrap();
+                let modified = regex.replace_all(&code, |caps: &regex::Captures | {
+                    if let Some(key) = caps.get(1) {
+                        match key.as_str() {
+                            "package" => format!("package=\"{}\"", &self.package_name),
+                            "android:versionCode" => format!("android:versionCode=\"{}\"", self.version_code),
+                            "android:versionName" => format!("android:versionName=\"{}\"", self.version),
+                            "android:authorities" => format!("android:authorities=\"{}.androidx-startup\"", self.package_name),
+                            "android:label" => format!("android:label=\"{}\"", self.app_name),
+                            _ => caps[0].to_string(),
+                        }
+                    } else if let Some(key) = caps.get(2) {
+                        match key.as_str() {
+                            r#"<permission android:name"# => format!(r#"<permission android:name="{}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION""#, &self.package_name),
+                            _ => caps[0].to_string(),
+                        }
+                    } else {
+                        caps[0].to_string()
+                    }
+                });
                 if let Err(error) = fs::write("template/AndroidManifest.xml", modified.as_bytes()) {
                     log(LogType::ERR, &format!("Error writing manifest: {}", error));
                     exit(-1);
@@ -257,7 +266,8 @@ impl Builder {
                     }
                 },
                 Err(error) => {
-                    log(crate::LogType::ERR, &format!("Error getting JAVA_HOME: {}", error.to_string()));
+                    log(crate::LogType::ERR, &format!("Error getting JAVA_HOME: {}; trying to force-use java", error.to_string()));
+                    java.push_str("java");
                 }
             }
            
